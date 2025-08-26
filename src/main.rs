@@ -11,12 +11,15 @@ async fn main() {
         draw_circle(screen_width() - 30.0, screen_height() - 30.0, 15.0, YELLOW);
 
         draw_text("IT WORKS!", 20.0, 20.0, 30.0, DARKGRAY);
-        map::draw_room(map::SimpleRoom {
-            top_exit: true,
-            right_exit: true,
-            left_exit: true,
-            bottom_exit: true
-        }, Vec2::new(screen_width() / 2.0, screen_height() / 2.0), 20.0);
+        let map = map::MapLevel {
+            rooms: [[Some(map::SimpleRoom {
+                top_exit: true,
+                right_exit: true,
+                left_exit: true,
+                bottom_exit: true,
+            }); 5]; 3],
+        };
+        map.draw(Vec2::new(screen_width() / 2.0, screen_height() / 2.0), 20.0);
 
         next_frame().await
     }
