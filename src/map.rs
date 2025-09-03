@@ -1,7 +1,7 @@
 use macroquad::prelude::*;
 
 #[derive(Clone, Copy)]
-pub struct SimpleRoom {
+pub struct SimpleRoomDrawInfo {
     pub left_exit: bool,
     pub right_exit: bool,
     pub top_exit: bool,
@@ -14,7 +14,7 @@ const ROOM_BODY: Color = RED;
 const ROOM_EXIT: Color = RED;
 const ROOM_SYMBOL: Color = GRAY;
 
-impl SimpleRoom {
+impl SimpleRoomDrawInfo {
     pub fn draw(self, top_left: Vec2, scale: f32) {
         let room_inset = scale / 8.0;
         let exit_offset = room_inset * 2.0;
@@ -74,10 +74,79 @@ impl SimpleRoom {
             );
         });
     }
+
+    pub fn rotate_left(self) -> SimpleRoomDrawInfo {
+        return SimpleRoomDrawInfo {
+            top_exit: self.right_exit,
+            right_exit: self.bottom_exit,
+            bottom_exit: self.left_exit,
+            left_exit: self.top_exit,
+            symbol: self.symbol,
+        };
+    }
+
+    pub fn rotate_right(self) -> SimpleRoomDrawInfo {
+        return SimpleRoomDrawInfo {
+            right_exit: self.top_exit,
+            bottom_exit: self.right_exit,
+            left_exit: self.bottom_exit,
+            top_exit: self.left_exit,
+            symbol: self.symbol,
+        };
+    }
+}
+
+pub mod room_type {
+    use crate::map::SimpleRoomDrawInfo;
+
+    pub const DEAD_END: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
+        top_exit: true,
+        left_exit: false,
+        right_exit: false,
+        bottom_exit: false,
+        symbol: None,
+    };
+    pub const L: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
+        top_exit: true,
+        left_exit: false,
+        right_exit: false,
+        bottom_exit: true,
+        symbol: None,
+    };
+    pub const HALL: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
+        top_exit: true,
+        left_exit: false,
+        right_exit: true,
+        bottom_exit: false,
+        symbol: None,
+    };
+    pub const T: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
+        left_exit: true,
+        right_exit: true,
+        top_exit: true,
+        bottom_exit: false,
+        symbol: None,
+    };
+    pub const CROSSING: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
+        left_exit: true,
+        right_exit: true,
+        top_exit: true,
+        bottom_exit: true,
+        symbol: None,
+    };
+    pub const NO_EXIT: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
+        left_exit: false,
+        right_exit: false,
+        top_exit: false,
+        bottom_exit: false,
+        symbol: None,
+    };
+
+    pub const ALL_TYPES: [SimpleRoomDrawInfo; 6] = [DEAD_END, L, HALL, T, CROSSING, NO_EXIT];
 }
 
 pub struct MapLevel<const W: usize, const H: usize> {
-    pub rooms: [[Option<SimpleRoom>; W]; H],
+    pub rooms: [[Option<SimpleRoomDrawInfo>; W]; H],
 }
 
 pub struct MapLevelDrawingCoords<const W: usize, const H: usize> {
@@ -120,7 +189,7 @@ impl<const W: usize, const H: usize> MapLevelDrawingCoords<W, H> {
         &self,
         level: &MapLevel<W, H>,
         point: Vec2,
-    ) -> Option<(Option<SimpleRoom>, Vec4, (usize, usize))> {
+    ) -> Option<(Option<SimpleRoomDrawInfo>, Vec4, (usize, usize))> {
         for (row, coord_row) in self.coords.iter().enumerate() {
             for (col, coord) in coord_row.iter().enumerate() {
                 if point.x > coord.x && point.y > coord.y && point.x < coord.z && point.y < coord.w

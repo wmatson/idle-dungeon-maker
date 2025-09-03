@@ -2,23 +2,33 @@ use macroquad::prelude::*;
 mod map;
 
 const MAP_WIDTH: usize = 5;
-const MAP_HEIGHT: usize = 3;
+const MAP_HEIGHT: usize = 5;
 
 #[macroquad::main("idle-dungeon-maker")]
 async fn main() {
     let mut rooms = [[None; MAP_WIDTH]; MAP_HEIGHT];
-    rooms[MAP_HEIGHT - 1][MAP_WIDTH / 2] = Some(map::SimpleRoom {
+    rooms[MAP_HEIGHT - 1][MAP_WIDTH / 2] = Some(map::SimpleRoomDrawInfo {
         top_exit: true,
         right_exit: true,
         left_exit: true,
         bottom_exit: false,
         symbol: Some('E'),
     });
+    let mut current_creating_room_type: usize = 0;
     loop {
         let map = map::MapLevel { rooms };
         clear_background(LIGHTGRAY);
 
         let map_scale = screen_width() / 10.0;
+
+        map::room_type::ALL_TYPES[current_creating_room_type]
+            .draw(Vec2 { x: 20.0, y: 20.0 }, map_scale);
+        draw_rectangle_lines(20.0, 20.0, map_scale, map_scale, 10.0, BLUE);
+        if is_key_released(KeyCode::D) {
+            current_creating_room_type =
+                (current_creating_room_type + 1) % map::room_type::ALL_TYPES.len();
+        }
+
         let coords = map.draw(
             Vec2::new(
                 screen_width() / 2.0 - map_scale * MAP_WIDTH as f32 / 2.0,
@@ -44,14 +54,17 @@ async fn main() {
                 2.0,
                 GREEN,
             );
-            if is_mouse_button_released(MouseButton::Left) && room.is_none() {
-                rooms[*row][*col] = Some(map::SimpleRoom {
-                    top_exit: false,
-                    right_exit: false,
-                    left_exit: false,
-                    bottom_exit: false,
-                    symbol: None,
-                })
+            if is_mouse_button_released(MouseButton::Left)
+                && room.is_none_or(|r| r.symbol.is_none_or(|s| s != 'E'))
+            {
+                rooms[*row][*col] =
+                    Some(map::room_type::ALL_TYPES[current_creating_room_type].clone())
+            }
+            if is_key_released(KeyCode::E) {
+                rooms[*row][*col] = room.map(|r| r.rotate_right())
+            }
+            if is_key_released(KeyCode::Q) {
+                rooms[*row][*col] = room.map(|r| r.rotate_left())
             }
         });
 
