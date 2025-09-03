@@ -80,8 +80,12 @@ pub struct MapLevel<const W: usize, const H: usize> {
     pub rooms: [[Option<SimpleRoom>; W]; H],
 }
 
+pub struct MapLevelDrawingCoords<const W: usize, const H: usize> {
+    coords: [[Vec4; W]; H],
+}
+
 impl<const W: usize, const H: usize> MapLevel<W, H> {
-    pub fn draw(&self, top_left: Vec2, scale: f32) {
+    pub fn draw(&self, top_left: Vec2, scale: f32) -> MapLevelDrawingCoords<W, H> {
         draw_rectangle(
             top_left.x,
             top_left.y,
@@ -90,15 +94,41 @@ impl<const W: usize, const H: usize> MapLevel<W, H> {
             ROOM_BACKGROUND.with_alpha(0.8),
         );
         let mut y = top_left.y;
-        for row in self.rooms {
+        let mut coords: [[Vec4; W]; H] = [[Vec4::ZERO; W]; H];
+        for (row, room_row) in self.rooms.iter().enumerate() {
             let mut x = top_left.x;
-            for room in row {
+            for (col, room) in room_row.iter().enumerate() {
                 if room.is_some() {
                     room.unwrap().draw(Vec2::new(x, y), scale);
                 }
+                coords[row][col] = Vec4 {
+                    x,
+                    y,
+                    z: x + scale,
+                    w: y + scale,
+                };
                 x += scale;
             }
             y += scale;
         }
+        return MapLevelDrawingCoords { coords };
+    }
+}
+
+impl<const W: usize, const H: usize> MapLevelDrawingCoords<W, H> {
+    pub fn get_room(
+        &self,
+        level: &MapLevel<W, H>,
+        point: Vec2,
+    ) -> Option<(Option<SimpleRoom>, Vec4, (usize, usize))> {
+        for (row, coord_row) in self.coords.iter().enumerate() {
+            for (col, coord) in coord_row.iter().enumerate() {
+                if point.x > coord.x && point.y > coord.y && point.x < coord.z && point.y < coord.w
+                {
+                    return Some((level.rooms[row][col], *coord, (row, col)));
+                }
+            }
+        }
+        return None;
     }
 }
