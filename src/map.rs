@@ -1,3 +1,5 @@
+use std::{collections::{HashSet, VecDeque}, fmt};
+
 use macroquad::prelude::*;
 
 #[derive(Clone, Copy)]
@@ -149,6 +151,31 @@ pub struct MapLevel<const W: usize, const H: usize> {
     pub rooms: [[Option<SimpleRoomDrawInfo>; W]; H],
 }
 
+type RoomPredicate = fn(SimpleRoomDrawInfo) -> bool;
+
+// pred, row, col
+const TRAVERSAL_DIRS: [(RoomPredicate, isize, isize); 4] = [
+    (|room| room.left_exit, 0, -1),
+    (|room| room.right_exit, 0, 1),
+    (|room| room.top_exit, -1, 0),
+    (|room| room.bottom_exit, 1, 0),
+];
+
+pub struct TraversalInfo {
+    pub depth: i32,
+    pub row: isize,
+    pub col: isize,
+    pub room_info: SimpleRoomDrawInfo,
+}
+
+impl fmt::Display for TraversalInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "depth: {}, row: {}, col: {}", self.depth, self.row, self.col)
+    }
+}
+
+pub type TraversalVisitor = fn(TraversalInfo);
+
 pub struct MapLevelDrawingCoords<const W: usize, const H: usize> {
     coords: [[Vec4; W]; H],
 }
@@ -181,6 +208,52 @@ impl<const W: usize, const H: usize> MapLevel<W, H> {
             y += scale;
         }
         return MapLevelDrawingCoords { coords };
+    }
+
+    pub fn breadth_traverse(&self, start_row: usize, start_col: usize, visitor: TraversalVisitor) {
+        if start_col >= W || start_row >= H {
+            panic!("Start was outside map bounds! {start_col} -> [0,{W}), {start_row} -> [0, {H})")
+        }
+        let mut traversal_queue: VecDeque<TraversalInfo> = VecDeque::new();
+        let mut already_visited: HashSet<(isize, isize)> = HashSet::new();
+
+        self.rooms[start_row][start_col].inspect(|x| {
+            traversal_queue.push_back(TraversalInfo {
+                depth: 0,
+                col: start_col as isize,
+                row: start_row as isize,
+                room_info: *x,
+            })
+        });
+        already_visited.insert((start_row as isize, start_col as isize));
+
+        while !traversal_queue.is_empty() {
+            let current = traversal_queue
+                .pop_front()
+                .expect("Queue was unexpectedly empty");
+            for (predicate, row_add, col_add) in TRAVERSAL_DIRS.iter() {
+                let new_row = current.row + row_add;
+                let new_col = current.col + col_add;
+                if predicate(current.room_info)
+                    && !already_visited.contains(&(new_row, new_col))
+                    && new_row >= 0
+                    && new_row <= H as isize
+                    && new_col >= 0
+                    && new_col <= W as isize
+                {
+                    self.rooms[new_row as usize][new_col as usize].inspect(|x| {
+                        traversal_queue.push_back(TraversalInfo {
+                            depth: current.depth + 1,
+                            row: new_row,
+                            col: new_col,
+                            room_info: *x,
+                        })
+                    });
+                    already_visited.insert((new_row, new_col));
+                }
+            }
+            visitor(current);
+        }
     }
 }
 

@@ -7,7 +7,9 @@ const MAP_HEIGHT: usize = 5;
 #[macroquad::main("idle-dungeon-maker")]
 async fn main() {
     let mut rooms = [[None; MAP_WIDTH]; MAP_HEIGHT];
-    rooms[MAP_HEIGHT - 1][MAP_WIDTH / 2] = Some(map::SimpleRoomDrawInfo {
+    let entrance_row = MAP_HEIGHT - 1;
+    let entrance_col = MAP_WIDTH / 2;
+    rooms[entrance_row][entrance_col] = Some(map::SimpleRoomDrawInfo {
         top_exit: true,
         right_exit: true,
         left_exit: true,
@@ -67,6 +69,10 @@ async fn main() {
                 rooms[*row][*col] = room.map(|r| r.rotate_left())
             }
         });
+
+        if is_key_released(KeyCode::GraveAccent) {
+            map.breadth_traverse(entrance_row, entrance_col, |x| println!("traversed {x}"));
+        }
 
         next_frame().await
     }
