@@ -308,6 +308,42 @@ impl<const W: usize, const H: usize> MapLevelDrawingCoords<W, H> {
 
 #[cfg(test)]
 mod tests {
+    use crate::map::{SimpleRoomDrawInfo, room_type};
+
+    #[test]
+    fn test_room_rotation() {
+        for room in room_type::ALL_TYPES {
+            let l1 = room.rotate_left();
+            let l2 = l1.rotate_left();
+            let l3 = l2.rotate_left();
+            let l4 = l3.rotate_left();
+
+            let r1 = room.rotate_right();
+            let r2 = r1.rotate_right();
+            let r3 = r2.rotate_right();
+            let r4 = r3.rotate_right();
+
+            assert_eq!(l1, r3);
+            assert_eq!(l2, r2);
+            assert_eq!(room, l4);
+            assert_eq!(room, r4);
+        }
+
+        let base_room = SimpleRoomDrawInfo {
+            left_exit: true,
+            right_exit: false,
+            top_exit: false,
+            bottom_exit: false,
+            symbol: None,
+        };
+
+        assert!(!base_room.rotate_left().left_exit);
+        assert!(!base_room.rotate_right().left_exit);
+
+        assert!(base_room.rotate_left().bottom_exit);
+        assert!(base_room.rotate_right().top_exit);
+    }
+
     #[test]
     fn test_basic_traversal() {
         use crate::map::{MapLevel, TraversalInfo, room_type};
@@ -344,6 +380,49 @@ mod tests {
         assert_eq!(center_hall, center_traversal.room_info);
         assert_eq!(center_traversal.depth, 1);
         assert_eq!(right_room, right_traversal.room_info);
+        assert_eq!(right_traversal.depth, 2);
+    }
+
+    #[test]
+    fn test_traversal_open_dead_ends() {
+        use crate::map::{MapLevel, TraversalInfo, room_type};
+
+        let left_room = room_type::DEAD_END.rotate_right();
+        let center_hall = room_type::HALL.rotate_left();
+        let right_crossing = room_type::CROSSING;
+
+        assert!(left_room.right_exit);
+        assert!(center_hall.left_exit);
+        assert!(center_hall.right_exit);
+        assert!(right_crossing.left_exit);
+
+        let map = MapLevel {
+            rooms: [
+                [Some(left_room), Some(center_hall), Some(right_crossing)],
+                [None; 3],
+            ],
+        };
+
+        let mut traversal_result: [[Option<TraversalInfo>; 3]; 2] = [[None; 3]; 2];
+
+        // shouldn't panic even though right_hall opens to the outside of the map and towards a non-room
+        map.breadth_traverse(0, 0, |ti| {
+            traversal_result[ti.row as usize][ti.col as usize] = Some(ti);
+        });
+
+        for ti in traversal_result {
+            assert!(!ti.is_empty())
+        }
+
+        let left_traversal = traversal_result[0][0].unwrap();
+        let center_traversal = traversal_result[0][1].unwrap();
+        let right_traversal = traversal_result[0][2].unwrap();
+
+        assert_eq!(left_room, left_traversal.room_info);
+        assert_eq!(left_traversal.depth, 0);
+        assert_eq!(center_hall, center_traversal.room_info);
+        assert_eq!(center_traversal.depth, 1);
+        assert_eq!(right_crossing, right_traversal.room_info);
         assert_eq!(right_traversal.depth, 2);
     }
 }
