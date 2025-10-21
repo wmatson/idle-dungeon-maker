@@ -5,7 +5,7 @@ use std::{
 
 use macroquad::prelude::*;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SimpleRoomDrawInfo {
     pub left_exit: bool,
     pub right_exit: bool,
@@ -111,14 +111,14 @@ pub mod room_type {
         bottom_exit: false,
         symbol: None,
     };
-    pub const L: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
+    pub const HALL: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
         top_exit: true,
         left_exit: false,
         right_exit: false,
         bottom_exit: true,
         symbol: None,
     };
-    pub const HALL: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
+    pub const L: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
         top_exit: true,
         left_exit: false,
         right_exit: true,
@@ -303,5 +303,47 @@ impl<const W: usize, const H: usize> MapLevelDrawingCoords<W, H> {
             }
         }
         return None;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_basic_traversal() {
+        use crate::map::{room_type, MapLevel, TraversalInfo};
+
+        let left_room = room_type::DEAD_END.rotate_right();
+        let center_hall = room_type::HALL.rotate_left();
+        let right_room = room_type::DEAD_END.rotate_left();
+
+        assert!(left_room.right_exit);
+        assert!(center_hall.left_exit);
+        assert!(center_hall.right_exit);
+        assert!(right_room.left_exit);
+
+        let map = MapLevel {
+            rooms: [[Some(left_room), Some(center_hall), Some(right_room)]]
+        };
+
+        let mut traversal_result: [[Option<TraversalInfo>; 3]; 1] = [[None; 3]];
+
+        map.breadth_traverse(0, 0, |ti| {
+            traversal_result[ti.row as usize][ti.col as usize] = Some(ti);
+        });
+
+        for ti in traversal_result {
+            assert!(!ti.is_empty())
+        }
+
+        let left_traversal = traversal_result[0][0].unwrap();
+        let center_traversal = traversal_result[0][1].unwrap();
+        let right_traversal = traversal_result[0][2].unwrap();
+
+        assert_eq!(left_room, left_traversal.room_info);
+        assert_eq!(left_traversal.depth, 0);
+        assert_eq!(center_hall, center_traversal.room_info);
+        assert_eq!(center_traversal.depth, 1);
+        assert_eq!(right_room, right_traversal.room_info);
+        assert_eq!(right_traversal.depth, 2);
     }
 }

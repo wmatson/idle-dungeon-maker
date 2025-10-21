@@ -142,10 +142,6 @@ async fn main() {
             }
         });
 
-        if is_key_released(KeyCode::GraveAccent) {
-            map.breadth_traverse(entrance_row, entrance_col, |x| println!("traversed {x}"));
-        }
-
         next_frame().await
     }
 }
