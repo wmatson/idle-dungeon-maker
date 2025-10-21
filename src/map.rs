@@ -310,7 +310,7 @@ impl<const W: usize, const H: usize> MapLevelDrawingCoords<W, H> {
 mod tests {
     #[test]
     fn test_basic_traversal() {
-        use crate::map::{room_type, MapLevel, TraversalInfo};
+        use crate::map::{MapLevel, TraversalInfo, room_type};
 
         let left_room = room_type::DEAD_END.rotate_right();
         let center_hall = room_type::HALL.rotate_left();
@@ -322,7 +322,7 @@ mod tests {
         assert!(right_room.left_exit);
 
         let map = MapLevel {
-            rooms: [[Some(left_room), Some(center_hall), Some(right_room)]]
+            rooms: [[Some(left_room), Some(center_hall), Some(right_room)]],
         };
 
         let mut traversal_result: [[Option<TraversalInfo>; 3]; 1] = [[None; 3]];
