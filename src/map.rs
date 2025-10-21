@@ -181,7 +181,7 @@ const TRAVERSAL_DIRS: [(RoomPredicate, isize, isize); 4] = [
     ),
 ];
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct TraversalInfo {
     pub depth: i32,
     pub row: isize,
@@ -204,6 +204,8 @@ pub struct MapLevelDrawingCoords<const W: usize, const H: usize> {
 }
 
 impl<const W: usize, const H: usize> MapLevel<W, H> {
+    const MAX_TRAVERSAL_VISITS: usize = W * H;
+
     pub fn draw(&self, top_left: Vec2, scale: f32) -> MapLevelDrawingCoords<W, H> {
         draw_rectangle(
             top_left.x,
@@ -257,7 +259,16 @@ impl<const W: usize, const H: usize> MapLevel<W, H> {
         });
         already_visited.insert((start_row as isize, start_col as isize));
 
+        let mut traversal_visit_count = 0;
+
         while !traversal_queue.is_empty() {
+            if traversal_visit_count > Self::MAX_TRAVERSAL_VISITS {
+                panic!(
+                    "Traversal looped too many times, current queue: {:?}",
+                    traversal_queue
+                );
+            }
+            traversal_visit_count += 1;
             let current = traversal_queue
                 .pop_front()
                 .expect("Queue was unexpectedly empty");
@@ -277,10 +288,10 @@ impl<const W: usize, const H: usize> MapLevel<W, H> {
                                 row: new_row,
                                 col: new_col,
                                 room_info: *x,
-                            })
+                            });
+                            already_visited.insert((new_row, new_col));
                         }
                     });
-                    already_visited.insert((new_row, new_col));
                 }
             }
             visitor(current);
@@ -308,7 +319,7 @@ impl<const W: usize, const H: usize> MapLevelDrawingCoords<W, H> {
 
 #[cfg(test)]
 mod tests {
-    use crate::map::{SimpleRoomDrawInfo, room_type};
+    use crate::map::{MapLevel, SimpleRoomDrawInfo, TraversalInfo, room_type};
 
     fn count_some_2d<const W: usize, const H: usize, T>(array2d: [[Option<T>; W]; H]) -> usize {
         array2d
@@ -353,8 +364,6 @@ mod tests {
 
     #[test]
     fn test_basic_traversal() {
-        use crate::map::{MapLevel, TraversalInfo, room_type};
-
         let left_room = room_type::DEAD_END.rotate_right();
         let center_hall = room_type::HALL.rotate_left();
         let right_room = room_type::DEAD_END.rotate_left();
@@ -393,8 +402,6 @@ mod tests {
 
     #[test]
     fn test_traversal_disconnected_entrances() {
-        use crate::map::{MapLevel, TraversalInfo, room_type};
-
         let left_room = room_type::DEAD_END.rotate_right();
         let center_hall = room_type::HALL.rotate_left();
         let right_room = room_type::NO_EXIT;
@@ -441,9 +448,75 @@ mod tests {
     }
 
     #[test]
-    fn test_traversal_open_dead_ends() {
-        use crate::map::{MapLevel, TraversalInfo, room_type};
+    fn test_traversal_loops() {
+        let enter_up_right = room_type::L;
+        let enter_down_right = enter_up_right.rotate_right();
+        let enter_down_left = enter_down_right.rotate_right();
+        let enter_left_up = enter_down_left.rotate_right();
 
+        let map = MapLevel {
+            rooms: [
+                [Some(enter_down_right), Some(enter_down_left)],
+                [Some(enter_up_right), Some(enter_left_up)],
+            ],
+        };
+
+        let mut traversal_result: [[Option<TraversalInfo>; 2]; 2] = [[None; 2]; 2];
+
+        map.breadth_traverse(0, 0, |ti| {
+            traversal_result[ti.row as usize][ti.col as usize] = Some(ti);
+        });
+
+        assert_eq!(count_some_2d(traversal_result), 4);
+        assert_eq!(traversal_result[0][0].unwrap().depth, 0);
+        assert_eq!(traversal_result[1][0].unwrap().depth, 1);
+        assert_eq!(traversal_result[0][1].unwrap().depth, 1);
+        assert_eq!(traversal_result[1][1].unwrap().depth, 2);
+    }
+
+    #[test]
+    fn test_traversal_multiple_enter_close_disconnect() {
+        let enter_up_right = room_type::L;
+        let enter_down_right = enter_up_right.rotate_right();
+        let enter_down_left = enter_down_right.rotate_right();
+        let enter_left_up = enter_down_left.rotate_right();
+
+        let map = MapLevel {
+            rooms: [
+                [
+                    Some(enter_down_right),
+                    Some(room_type::HALL.rotate_right()),
+                    Some(enter_down_left),
+                ],
+                [
+                    Some(enter_up_right),
+                    Some(enter_up_right),
+                    Some(enter_left_up),
+                ],
+            ],
+        };
+
+        let mut traversal_result: [[Option<TraversalInfo>; 3]; 2] = [[None; 3]; 2];
+
+        map.breadth_traverse(0, 0, |ti| {
+            traversal_result[ti.row as usize][ti.col as usize] = Some(ti);
+        });
+
+        assert_eq!(
+            count_some_2d(traversal_result),
+            6,
+            "expected full traversal"
+        );
+        assert_eq!(traversal_result[0][0].unwrap().depth, 0);
+        assert_eq!(traversal_result[1][0].unwrap().depth, 1);
+        assert_eq!(traversal_result[0][1].unwrap().depth, 1);
+        assert_eq!(traversal_result[0][2].unwrap().depth, 2);
+        assert_eq!(traversal_result[1][2].unwrap().depth, 3);
+        assert_eq!(traversal_result[1][1].unwrap().depth, 4);
+    }
+
+    #[test]
+    fn test_traversal_open_dead_ends() {
         let left_room = room_type::DEAD_END.rotate_right();
         let center_hall = room_type::HALL.rotate_left();
         let right_crossing = room_type::CROSSING;
