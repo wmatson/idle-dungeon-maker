@@ -16,15 +16,25 @@ struct GameState {
 }
 
 impl GameState {
-    pub fn new(initial_entrance_row: usize, initial_entrance_col: usize, initial_room: SimpleRoomDrawInfo) -> Self {
-        let mut game = GameState{
+    pub fn new(
+        initial_entrance_row: usize,
+        initial_entrance_col: usize,
+        initial_room: SimpleRoomDrawInfo,
+    ) -> Self {
+        let mut game = GameState {
             rooms: [[None; MAP_WIDTH]; MAP_HEIGHT],
             traversal_info: [[None; MAP_WIDTH]; MAP_HEIGHT],
-            entrance_rowcols: Vec::new()
+            entrance_rowcols: Vec::new(),
         };
         game.rooms[initial_entrance_row][initial_entrance_col] = Some(initial_room);
-        game.traversal_info[initial_entrance_row][initial_entrance_col] = Some(TraversalInfo { depth: 0, row: initial_entrance_row as isize, col: initial_entrance_col as isize, room_info: initial_room });
-        game.entrance_rowcols.push((initial_entrance_row, initial_entrance_col));
+        game.traversal_info[initial_entrance_row][initial_entrance_col] = Some(TraversalInfo {
+            depth: 0,
+            row: initial_entrance_row as isize,
+            col: initial_entrance_col as isize,
+            room_info: initial_room,
+        });
+        game.entrance_rowcols
+            .push((initial_entrance_row, initial_entrance_col));
         return game;
     }
 
@@ -57,13 +67,17 @@ async fn main() {
     let entrance_row = MAP_HEIGHT - 1;
     let entrance_col = MAP_WIDTH / 2;
 
-    let mut game = GameState::new(entrance_row, entrance_col, map::SimpleRoomDrawInfo {
+    let mut game = GameState::new(
+        entrance_row,
+        entrance_col,
+        map::SimpleRoomDrawInfo {
             top_exit: true,
             right_exit: true,
             left_exit: true,
             bottom_exit: false,
             symbol: Some('E'),
-        });
+        },
+    );
     let mut current_creating_room_type: usize = 0;
     loop {
         let map = game.get_map_level();

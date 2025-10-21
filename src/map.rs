@@ -1,4 +1,7 @@
-use std::{collections::{HashSet, VecDeque}, fmt};
+use std::{
+    collections::{HashSet, VecDeque},
+    fmt,
+};
 
 use macroquad::prelude::*;
 
@@ -171,7 +174,11 @@ pub struct TraversalInfo {
 
 impl fmt::Display for TraversalInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "depth: {}, row: {}, col: {}", self.depth, self.row, self.col)
+        write!(
+            f,
+            "depth: {}, row: {}, col: {}",
+            self.depth, self.row, self.col
+        )
     }
 }
 
@@ -209,9 +216,14 @@ impl<const W: usize, const H: usize> MapLevel<W, H> {
         return MapLevelDrawingCoords { coords };
     }
 
-    pub fn breadth_traverse<TraversalFn>(&self, start_row: usize, start_col: usize, mut visitor: TraversalFn)
-      where TraversalFn: FnMut(TraversalInfo) 
-      {
+    pub fn breadth_traverse<TraversalFn>(
+        &self,
+        start_row: usize,
+        start_col: usize,
+        mut visitor: TraversalFn,
+    ) where
+        TraversalFn: FnMut(TraversalInfo),
+    {
         if start_col >= W || start_row >= H {
             panic!("Start was outside map bounds! {start_col} -> [0,{W}), {start_row} -> [0, {H})")
         }
