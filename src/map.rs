@@ -310,6 +310,13 @@ impl<const W: usize, const H: usize> MapLevelDrawingCoords<W, H> {
 mod tests {
     use crate::map::{SimpleRoomDrawInfo, room_type};
 
+    fn count_some_2d<const W: usize, const H: usize, T>(array2d: [[Option<T>; W]; H]) -> usize {
+        array2d
+            .iter()
+            .flat_map(|x| x.iter().filter(|xinner| xinner.is_some()))
+            .count()
+    }
+
     #[test]
     fn test_room_rotation() {
         for room in room_type::ALL_TYPES {
@@ -370,6 +377,7 @@ mod tests {
         for ti in traversal_result {
             assert!(!ti.is_empty())
         }
+        assert_eq!(count_some_2d(traversal_result), 3);
 
         let left_traversal = traversal_result[0][0].unwrap();
         let center_traversal = traversal_result[0][1].unwrap();
@@ -381,6 +389,55 @@ mod tests {
         assert_eq!(center_traversal.depth, 1);
         assert_eq!(right_room, right_traversal.room_info);
         assert_eq!(right_traversal.depth, 2);
+    }
+
+    #[test]
+    fn test_traversal_disconnected_entrances() {
+        use crate::map::{MapLevel, TraversalInfo, room_type};
+
+        let left_room = room_type::DEAD_END.rotate_right();
+        let center_hall = room_type::HALL.rotate_left();
+        let right_room = room_type::NO_EXIT;
+
+        assert!(left_room.right_exit);
+        assert!(center_hall.left_exit);
+        assert!(center_hall.right_exit);
+        assert!(!right_room.left_exit);
+
+        let map = MapLevel {
+            rooms: [[Some(left_room), Some(center_hall), Some(right_room)]],
+        };
+
+        let mut traversal_result: [[Option<TraversalInfo>; 3]; 1] = [[None; 3]];
+
+        map.breadth_traverse(0, 0, |ti| {
+            traversal_result[ti.row as usize][ti.col as usize] = Some(ti);
+        });
+
+        for ti in traversal_result {
+            assert!(!ti.is_empty())
+        }
+
+        let left_traversal = traversal_result[0][0].unwrap();
+        let center_traversal = traversal_result[0][1].unwrap();
+        assert!(traversal_result[0][2].is_none());
+
+        assert_eq!(left_room, left_traversal.room_info);
+        assert_eq!(left_traversal.depth, 0);
+        assert_eq!(center_hall, center_traversal.room_info);
+        assert_eq!(center_traversal.depth, 1);
+
+        traversal_result = [[None; 3]];
+
+        map.breadth_traverse(0, 2, |ti| {
+            traversal_result[ti.row as usize][ti.col as usize] = Some(ti);
+        });
+
+        let right_traversal = traversal_result[0][2].unwrap();
+
+        assert_eq!(right_room, right_traversal.room_info);
+        assert_eq!(right_traversal.depth, 0);
+        assert_eq!(count_some_2d(traversal_result), 1);
     }
 
     #[test]
