@@ -118,6 +118,16 @@ async fn main() {
                 2.0,
                 GREEN,
             );
+            game.traversal_info[*row][*col].inspect(|ti| {
+                draw_multiline_text(
+                    &ti.to_string(),
+                    found_bounds.x + map_scale,
+                    found_bounds.y + map_scale,
+                    20.0,
+                    None,
+                    PURPLE,
+                );
+            });
             if is_mouse_button_released(MouseButton::Left)
                 && room.is_none_or(|r| r.symbol.is_none_or(|s| s != 'E'))
             {
