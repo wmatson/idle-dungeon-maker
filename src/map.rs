@@ -161,6 +161,7 @@ const TRAVERSAL_DIRS: [(RoomPredicate, isize, isize); 4] = [
     (|room| room.bottom_exit, 1, 0),
 ];
 
+#[derive(Clone, Copy)]
 pub struct TraversalInfo {
     pub depth: i32,
     pub row: isize,
@@ -173,8 +174,6 @@ impl fmt::Display for TraversalInfo {
         write!(f, "depth: {}, row: {}, col: {}", self.depth, self.row, self.col)
     }
 }
-
-pub type TraversalVisitor = fn(TraversalInfo);
 
 pub struct MapLevelDrawingCoords<const W: usize, const H: usize> {
     coords: [[Vec4; W]; H],
@@ -210,7 +209,9 @@ impl<const W: usize, const H: usize> MapLevel<W, H> {
         return MapLevelDrawingCoords { coords };
     }
 
-    pub fn breadth_traverse(&self, start_row: usize, start_col: usize, visitor: TraversalVisitor) {
+    pub fn breadth_traverse<TraversalFn>(&self, start_row: usize, start_col: usize, mut visitor: TraversalFn)
+      where TraversalFn: FnMut(TraversalInfo) 
+      {
         if start_col >= W || start_row >= H {
             panic!("Start was outside map bounds! {start_col} -> [0,{W}), {start_row} -> [0, {H})")
         }
@@ -237,9 +238,9 @@ impl<const W: usize, const H: usize> MapLevel<W, H> {
                 if predicate(current.room_info)
                     && !already_visited.contains(&(new_row, new_col))
                     && new_row >= 0
-                    && new_row <= H as isize
+                    && new_row < H as isize
                     && new_col >= 0
-                    && new_col <= W as isize
+                    && new_col < W as isize
                 {
                     self.rooms[new_row as usize][new_col as usize].inspect(|x| {
                         traversal_queue.push_back(TraversalInfo {

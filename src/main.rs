@@ -1,20 +1,50 @@
 use macroquad::prelude::*;
 
-use crate::map::SimpleRoomDrawInfo;
+use crate::map::{SimpleRoomDrawInfo, TraversalInfo};
 mod map;
 
 const MAP_WIDTH: usize = 5;
 const MAP_HEIGHT: usize = 5;
 
-type RoomsInfo = [[Option<SimpleRoomDrawInfo>; MAP_WIDTH]; MAP_HEIGHT];
+type MapInfo<T> = [[Option<T>; MAP_WIDTH]; MAP_HEIGHT];
+type RoomsInfo = MapInfo<SimpleRoomDrawInfo>;
 
 struct GameState {
-    pub rooms: RoomsInfo
+    rooms: RoomsInfo,
+    traversal_info: MapInfo<TraversalInfo>,
+    entrance_rowcols: Vec<(usize, usize)>,
 }
 
 impl GameState {
+    pub fn new(initial_entrance_row: usize, initial_entrance_col: usize, initial_room: SimpleRoomDrawInfo) -> Self {
+        let mut game = GameState{
+            rooms: [[None; MAP_WIDTH]; MAP_HEIGHT],
+            traversal_info: [[None; MAP_WIDTH]; MAP_HEIGHT],
+            entrance_rowcols: Vec::new()
+        };
+        game.rooms[initial_entrance_row][initial_entrance_col] = Some(initial_room);
+        game.traversal_info[initial_entrance_row][initial_entrance_col] = Some(TraversalInfo { depth: 0, row: initial_entrance_row as isize, col: initial_entrance_col as isize, room_info: initial_room });
+        game.entrance_rowcols.push((initial_entrance_row, initial_entrance_col));
+        return game;
+    }
+
     fn update_room(&mut self, row: usize, col: usize, new_room: Option<SimpleRoomDrawInfo>) {
         self.rooms[row][col] = new_room;
+        // clear the traversal map
+        self.traversal_info = [[None; MAP_WIDTH]; MAP_HEIGHT];
+        // recalculate depths based on every entrance (only one should exist as of 2025-10-21 anyway), taking the lowest depth when two entrances can reach the same location
+        for (e_row, e_col) in self.entrance_rowcols.iter() {
+            self.get_map_level().breadth_traverse(*e_row, *e_col, |ti| {
+                let info_slot = &mut self.traversal_info[ti.row as usize][ti.col as usize];
+                *info_slot = Some(info_slot.map_or(ti, |existing| {
+                    if existing.depth < ti.depth {
+                        existing
+                    } else {
+                        ti
+                    }
+                }))
+            });
+        }
     }
 
     fn get_map_level(&self) -> map::MapLevel<MAP_WIDTH, MAP_HEIGHT> {
@@ -27,16 +57,13 @@ async fn main() {
     let entrance_row = MAP_HEIGHT - 1;
     let entrance_col = MAP_WIDTH / 2;
 
-    let mut game = GameState{
-        rooms: [[None; MAP_WIDTH]; MAP_HEIGHT],
-    };
-    game.rooms[entrance_row][entrance_col] = Some(map::SimpleRoomDrawInfo {
-        top_exit: true,
-        right_exit: true,
-        left_exit: true,
-        bottom_exit: false,
-        symbol: Some('E'),
-    });
+    let mut game = GameState::new(entrance_row, entrance_col, map::SimpleRoomDrawInfo {
+            top_exit: true,
+            right_exit: true,
+            left_exit: true,
+            bottom_exit: false,
+            symbol: Some('E'),
+        });
     let mut current_creating_room_type: usize = 0;
     loop {
         let map = game.get_map_level();
