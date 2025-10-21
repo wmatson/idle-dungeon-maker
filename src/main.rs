@@ -1,15 +1,36 @@
 use macroquad::prelude::*;
+
+use crate::map::SimpleRoomDrawInfo;
 mod map;
 
 const MAP_WIDTH: usize = 5;
 const MAP_HEIGHT: usize = 5;
 
+type RoomsInfo = [[Option<SimpleRoomDrawInfo>; MAP_WIDTH]; MAP_HEIGHT];
+
+struct GameState {
+    pub rooms: RoomsInfo
+}
+
+impl GameState {
+    fn update_room(&mut self, row: usize, col: usize, new_room: Option<SimpleRoomDrawInfo>) {
+        self.rooms[row][col] = new_room;
+    }
+
+    fn get_map_level(&self) -> map::MapLevel<MAP_WIDTH, MAP_HEIGHT> {
+        return map::MapLevel { rooms: self.rooms };
+    }
+}
+
 #[macroquad::main("idle-dungeon-maker")]
 async fn main() {
-    let mut rooms = [[None; MAP_WIDTH]; MAP_HEIGHT];
     let entrance_row = MAP_HEIGHT - 1;
     let entrance_col = MAP_WIDTH / 2;
-    rooms[entrance_row][entrance_col] = Some(map::SimpleRoomDrawInfo {
+
+    let mut game = GameState{
+        rooms: [[None; MAP_WIDTH]; MAP_HEIGHT],
+    };
+    game.rooms[entrance_row][entrance_col] = Some(map::SimpleRoomDrawInfo {
         top_exit: true,
         right_exit: true,
         left_exit: true,
@@ -18,7 +39,7 @@ async fn main() {
     });
     let mut current_creating_room_type: usize = 0;
     loop {
-        let map = map::MapLevel { rooms };
+        let map = game.get_map_level();
         clear_background(LIGHTGRAY);
 
         let map_scale = screen_width() / 10.0;
@@ -59,14 +80,14 @@ async fn main() {
             if is_mouse_button_released(MouseButton::Left)
                 && room.is_none_or(|r| r.symbol.is_none_or(|s| s != 'E'))
             {
-                rooms[*row][*col] =
-                    Some(map::room_type::ALL_TYPES[current_creating_room_type].clone())
+                let new_room = map::room_type::ALL_TYPES[current_creating_room_type].clone();
+                game.update_room(*row, *col, Some(new_room));
             }
             if is_key_released(KeyCode::E) {
-                rooms[*row][*col] = room.map(|r| r.rotate_right())
+                game.update_room(*row, *col, room.map(|r| r.rotate_right()));
             }
             if is_key_released(KeyCode::Q) {
-                rooms[*row][*col] = room.map(|r| r.rotate_left())
+                game.update_room(*row, *col, room.map(|r| r.rotate_left()));
             }
         });
 
