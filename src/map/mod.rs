@@ -5,157 +5,14 @@ use std::{
 
 use macroquad::prelude::*;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SimpleRoomDrawInfo {
-    pub left_exit: bool,
-    pub right_exit: bool,
-    pub top_exit: bool,
-    pub bottom_exit: bool,
-    pub symbol: Option<char>,
-}
-
-const ROOM_BACKGROUND: Color = BLACK;
-const ROOM_BODY: Color = RED;
-const ROOM_EXIT: Color = RED;
-const ROOM_SYMBOL: Color = GRAY;
-
-impl SimpleRoomDrawInfo {
-    pub fn draw(self, top_left: Vec2, scale: f32) {
-        let room_inset = scale / 8.0;
-        let exit_offset = room_inset * 2.0;
-        let exit_size = scale - exit_offset * 2.0;
-        draw_rectangle(top_left.x, top_left.y, scale, scale, ROOM_BACKGROUND);
-        draw_rectangle(
-            top_left.x + room_inset,
-            top_left.y + room_inset,
-            scale - exit_offset,
-            scale - exit_offset,
-            ROOM_BODY,
-        );
-        if self.bottom_exit {
-            draw_rectangle(
-                top_left.x + exit_offset,
-                top_left.y + scale - room_inset,
-                exit_size,
-                room_inset,
-                ROOM_EXIT,
-            );
-        }
-        if self.top_exit {
-            draw_rectangle(
-                top_left.x + exit_offset,
-                top_left.y,
-                exit_size,
-                room_inset,
-                ROOM_EXIT,
-            );
-        }
-        if self.right_exit {
-            draw_rectangle(
-                top_left.x + scale - room_inset,
-                top_left.y + exit_offset,
-                room_inset,
-                exit_size,
-                ROOM_EXIT,
-            );
-        }
-        if self.left_exit {
-            draw_rectangle(
-                top_left.x,
-                top_left.y + exit_offset,
-                room_inset,
-                exit_size,
-                ROOM_EXIT,
-            );
-        }
-        self.symbol.inspect(|sym| {
-            let mut buffer = [0u8; 4];
-            draw_text(
-                sym.encode_utf8(&mut buffer),
-                top_left.x + room_inset,
-                top_left.y + scale - room_inset * 2.0,
-                scale,
-                ROOM_SYMBOL,
-            );
-        });
-    }
-
-    pub fn rotate_left(self) -> SimpleRoomDrawInfo {
-        return SimpleRoomDrawInfo {
-            top_exit: self.right_exit,
-            right_exit: self.bottom_exit,
-            bottom_exit: self.left_exit,
-            left_exit: self.top_exit,
-            symbol: self.symbol,
-        };
-    }
-
-    pub fn rotate_right(self) -> SimpleRoomDrawInfo {
-        return SimpleRoomDrawInfo {
-            right_exit: self.top_exit,
-            bottom_exit: self.right_exit,
-            left_exit: self.bottom_exit,
-            top_exit: self.left_exit,
-            symbol: self.symbol,
-        };
-    }
-}
-
-pub mod room_type {
-    use crate::map::SimpleRoomDrawInfo;
-
-    pub const DEAD_END: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
-        top_exit: true,
-        left_exit: false,
-        right_exit: false,
-        bottom_exit: false,
-        symbol: None,
-    };
-    pub const HALL: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
-        top_exit: true,
-        left_exit: false,
-        right_exit: false,
-        bottom_exit: true,
-        symbol: None,
-    };
-    pub const L: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
-        top_exit: true,
-        left_exit: false,
-        right_exit: true,
-        bottom_exit: false,
-        symbol: None,
-    };
-    pub const T: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
-        left_exit: true,
-        right_exit: true,
-        top_exit: true,
-        bottom_exit: false,
-        symbol: None,
-    };
-    pub const CROSSING: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
-        left_exit: true,
-        right_exit: true,
-        top_exit: true,
-        bottom_exit: true,
-        symbol: None,
-    };
-    pub const NO_EXIT: SimpleRoomDrawInfo = SimpleRoomDrawInfo {
-        left_exit: false,
-        right_exit: false,
-        top_exit: false,
-        bottom_exit: false,
-        symbol: None,
-    };
-
-    pub const ALL_TYPES: [SimpleRoomDrawInfo; 6] = [DEAD_END, L, HALL, T, CROSSING, NO_EXIT];
-}
+pub mod room;
 
 pub struct MapLevel<const W: usize, const H: usize> {
-    pub rooms: [[Option<SimpleRoomDrawInfo>; W]; H],
+    pub rooms: [[Option<room::SimpleRoomDrawInfo>; W]; H],
 }
 
 // from_room, to_room
-type RoomPredicate = fn(SimpleRoomDrawInfo, SimpleRoomDrawInfo) -> bool;
+type RoomPredicate = fn(room::SimpleRoomDrawInfo, room::SimpleRoomDrawInfo) -> bool;
 
 // pred, row, col
 const TRAVERSAL_DIRS: [(RoomPredicate, isize, isize); 4] = [
@@ -186,7 +43,7 @@ pub struct TraversalInfo {
     pub depth: i32,
     pub row: isize,
     pub col: isize,
-    pub room_info: SimpleRoomDrawInfo,
+    pub room_info: room::SimpleRoomDrawInfo,
 }
 
 impl fmt::Display for TraversalInfo {
@@ -212,7 +69,7 @@ impl<const W: usize, const H: usize> MapLevel<W, H> {
             top_left.y,
             scale * W as f32,
             scale * H as f32,
-            ROOM_BACKGROUND.with_alpha(0.8),
+            room::ROOM_BACKGROUND.with_alpha(0.8),
         );
         let mut y = top_left.y;
         let mut coords: [[Vec4; W]; H] = [[Vec4::ZERO; W]; H];
@@ -304,7 +161,7 @@ impl<const W: usize, const H: usize> MapLevelDrawingCoords<W, H> {
         &self,
         level: &MapLevel<W, H>,
         point: Vec2,
-    ) -> Option<(Option<SimpleRoomDrawInfo>, Vec4, (usize, usize))> {
+    ) -> Option<(Option<room::SimpleRoomDrawInfo>, Vec4, (usize, usize))> {
         for (row, coord_row) in self.coords.iter().enumerate() {
             for (col, coord) in coord_row.iter().enumerate() {
                 if point.x > coord.x && point.y > coord.y && point.x < coord.z && point.y < coord.w
@@ -319,7 +176,7 @@ impl<const W: usize, const H: usize> MapLevelDrawingCoords<W, H> {
 
 #[cfg(test)]
 mod tests {
-    use crate::map::{MapLevel, SimpleRoomDrawInfo, TraversalInfo, room_type};
+    use crate::map::{MapLevel, TraversalInfo, room::SimpleRoomDrawInfo, room::room_type};
 
     fn count_some_2d<const W: usize, const H: usize, T>(array2d: [[Option<T>; W]; H]) -> usize {
         array2d

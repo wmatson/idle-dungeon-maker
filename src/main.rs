@@ -1,6 +1,6 @@
 use macroquad::prelude::*;
 
-use crate::map::{SimpleRoomDrawInfo, TraversalInfo};
+use crate::map::{TraversalInfo, room::SimpleRoomDrawInfo};
 mod map;
 
 const MAP_WIDTH: usize = 5;
@@ -70,7 +70,7 @@ async fn main() {
     let mut game = GameState::new(
         entrance_row,
         entrance_col,
-        map::SimpleRoomDrawInfo {
+        map::room::SimpleRoomDrawInfo {
             top_exit: true,
             right_exit: true,
             left_exit: true,
@@ -85,12 +85,12 @@ async fn main() {
 
         let map_scale = screen_width() / 10.0;
 
-        map::room_type::ALL_TYPES[current_creating_room_type]
+        map::room::room_type::ALL_TYPES[current_creating_room_type]
             .draw(Vec2 { x: 20.0, y: 20.0 }, map_scale);
         draw_rectangle_lines(20.0, 20.0, map_scale, map_scale, 10.0, BLUE);
         if is_key_released(KeyCode::D) {
             current_creating_room_type =
-                (current_creating_room_type + 1) % map::room_type::ALL_TYPES.len();
+                (current_creating_room_type + 1) % map::room::room_type::ALL_TYPES.len();
         }
 
         let coords = map.draw(
@@ -131,7 +131,7 @@ async fn main() {
             if is_mouse_button_released(MouseButton::Left)
                 && room.is_none_or(|r| r.symbol.is_none_or(|s| s != 'E'))
             {
-                let new_room = map::room_type::ALL_TYPES[current_creating_room_type].clone();
+                let new_room = map::room::room_type::ALL_TYPES[current_creating_room_type].clone();
                 game.update_room(*row, *col, Some(new_room));
             }
             if is_key_released(KeyCode::E) {
